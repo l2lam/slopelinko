@@ -2,22 +2,24 @@
   <div class="end-container">
     <div class="glass-panel results-panel">
       
-      <div v-if="winner" class="winner-section">
-        <h1 class="winner-title">🎉 WINNER 🎉</h1>
-        <h2 class="winner-name">🏆 {{ winner.name }} 🏆</h2>
-        <div class="winner-score">{{ winner.score }} pts</div>
+      <div v-if="winners.length > 0" class="winner-section">
+        <h1 class="winner-title" v-if="winners.length === 1">🎉 WINNER 🎉</h1>
+        <h1 class="winner-title" v-else>🎉 IT'S A TIE! 🎉</h1>
+        
+        <h2 v-for="w in winners" :key="w.id" class="winner-name">🏆 {{ w.name }} 🏆</h2>
+        <div class="winner-score" v-if="winners[0]">{{ winners[0].score }} pts</div>
       </div>
 
       <div class="standings">
         <h3>Final Standings</h3>
         <div class="player-list">
           <div 
-            v-for="(player, index) in sortedPlayers" 
+            v-for="player in sortedPlayers" 
             :key="player.id" 
             class="player-row" 
-            :class="{ isWinner: index === 0 }"
+            :class="{ isWinner: winners.length > 0 && player.score === winners[0]?.score }"
           >
-            <span class="rank">#{{ index + 1 }}</span>
+            <span class="rank">#{{ getRank(player) }}</span>
             <span class="name">{{ player.name }}</span>
             <span class="score">{{ player.score }}</span>
           </div>
@@ -43,7 +45,20 @@ const sortedPlayers = computed(() => {
   return [...gameState.players].sort((a, b) => b.score - a.score)
 })
 
-const winner = computed(() => sortedPlayers.value[0])
+const getRank = (player: typeof gameState.players[0]) => {
+  // Find index of first player with this score
+  const firstIndex = sortedPlayers.value.findIndex(p => p.score === player.score)
+  return firstIndex + 1
+}
+
+const winners = computed(() => {
+  if (sortedPlayers.value.length === 0) return []
+  const topPlayer = sortedPlayers.value[0]
+  if (!topPlayer) return []
+  
+  const topScore = topPlayer.score
+  return sortedPlayers.value.filter(p => p.score === topScore)
+})
 
 const playAgain = () => {
   resetGame()
