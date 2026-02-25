@@ -25,6 +25,7 @@ let runner: Matter.Runner
 let ball: Matter.Body | null = null
 let lineBody: Matter.Body | null = null
 let bucketSensors: Matter.Body[] = []
+let obstacleBodies: Matter.Body[] = []
 
 const WIDTH = 800
 const HEIGHT = 600
@@ -66,6 +67,10 @@ const playScoreSound = (points: number) => {
         setTimeout(() => playTone(600, 'sine', 0.2), 150)
         setTimeout(() => playTone(1200, 'sine', 0.4), 300)
     }
+}
+
+const playObstacleBounceSound = () => {
+    playTone(800, 'triangle', 0.05)
 }
 
 const generateBuckets = () => {
@@ -127,6 +132,48 @@ const regenerateBuckets = () => {
   }
   bucketSensors = generateBuckets()
   Matter.World.add(engine.world, bucketSensors)
+}
+
+const generateObstacles = () => {
+  const obstacles: {x: number, y: number}[] = []
+  const numObstacles = 10 + Math.floor(Math.random() * 5) // 10 to 14 obstacles
+  const minDistance = 80
+  
+  for (let i = 0; i < 100; i++) {
+      if (obstacles.length >= numObstacles) break
+      
+      const x = Math.random() * (WIDTH - 100) + 50
+      const y = Math.random() * (HEIGHT - 250) + 120
+      
+      let tooClose = false
+      for (const obs of obstacles) {
+          const dx = x - obs.x
+          const dy = y - obs.y
+          if (Math.sqrt(dx*dx + dy*dy) < minDistance) {
+              tooClose = true
+              break
+          }
+      }
+      
+      if (!tooClose) {
+          obstacles.push({ x, y })
+      }
+  }
+  
+  return obstacles.map(obs => Matter.Bodies.circle(obs.x, obs.y, 8, {
+      isStatic: true,
+      label: 'obstacle',
+      restitution: 0.8,
+      render: { fillStyle: '#aaa' }
+  }))
+}
+
+const regenerateObstacles = () => {
+  if (obstacleBodies.length > 0) {
+    Matter.World.remove(engine.world, obstacleBodies)
+  }
+  obstacleBodies = generateObstacles()
+  Matter.World.add(engine.world, obstacleBodies)
 }
 
 const drawGrid = (ctx: CanvasRenderingContext2D) => {
@@ -222,6 +269,7 @@ onMounted(() => {
   }
   
   regenerateBuckets()
+  regenerateObstacles()
   
   if (!props.isCommitted) {
       spawnStaticBall()
@@ -238,6 +286,15 @@ onMounted(() => {
         if (bodyA.label.startsWith('bucket_') && bodyB === ball) bucket = bodyA
         if (bodyB.label.startsWith('bucket_') && bodyA === ball) bucket = bodyB
         
+        let obstacle = null
+        if (bodyA.label === 'obstacle' && bodyB === ball) obstacle = bodyA
+        if (bodyB.label === 'obstacle' && bodyA === ball) obstacle = bodyB
+        
+        if (obstacle) {
+            playObstacleBounceSound()
+            ;(obstacle as any).hitTime = Date.now()
+        }
+
         if (bucket) {
             (bucket as any).hitTime = Date.now()
             const typeStr = bucket.label.replace('bucket_', '')
@@ -265,6 +322,18 @@ onMounted(() => {
       const ctx = render.context
       ctx.textAlign = 'center'
       
+      obstacleBodies.forEach(b => {
+          if ((b as any).hitTime) {
+            const sinceHit = Date.now() - (b as any).hitTime
+            if (sinceHit < 200) {
+              ctx.beginPath()
+              ctx.arc(b.position.x, b.position.y, 12, 0, 2 * Math.PI)
+              ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0, 1 - sinceHit/200)})`
+              ctx.fill()
+            }
+          }
+      })
+
       bucketSensors.forEach(b => {
           const type = b.label.replace('bucket_', '')
           
@@ -367,6 +436,7 @@ watch(() => props.isCommitted, (commited) => {
         isDrawingLine = false
         ballDropTime = null
         regenerateBuckets()
+        regenerateObstacles()
         spawnStaticBall()
     }
 })
