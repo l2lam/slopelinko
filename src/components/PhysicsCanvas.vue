@@ -60,6 +60,28 @@ const playObstacleBounceSound = () => {
     playTone(800, 'triangle', 0.05)
 }
 
+const playLineDrawSound = () => {
+    try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+        if (audioCtx.state === 'suspended') audioCtx.resume()
+        const oscillator = audioCtx.createOscillator()
+        const gainNode = audioCtx.createGain()
+        
+        oscillator.type = 'sine'
+        oscillator.frequency.setValueAtTime(300, audioCtx.currentTime)
+        oscillator.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 1)
+        
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime)
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1)
+        
+        oscillator.connect(gainNode)
+        gainNode.connect(audioCtx.destination)
+        
+        oscillator.start()
+        oscillator.stop(audioCtx.currentTime + 1)
+    } catch(e) { console.warn('Audio play failed', e) }
+}
+
 const generateBuckets = () => {
   const buckets = []
   const numBuckets = Math.floor(Math.random() * 4) + 5 // 5 to 8 buckets
@@ -389,6 +411,8 @@ watch(() => props.isCommitted, (commited) => {
             duration: 1000,
             y0, y1, dx, dy, length, angle
         }
+        
+        playLineDrawSound()
         
         setTimeout(() => {
             isDrawingLine = false
