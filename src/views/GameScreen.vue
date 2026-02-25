@@ -12,14 +12,20 @@
     </div>
 
     <div class="main-play-area">
-      <PhysicsCanvas 
-        class="physics-view"
-        :m="currentM" 
-        :b="currentB" 
-        :is-committed="isCommitted" 
-        :scale-param="scaleParam"
-        @ball-result="handleBallResult"
-      />
+      <div class="physics-wrapper">
+        <div class="equation-display glass-panel">
+          <h2 v-if="isCommitted">y = {{ currentM }}x {{ currentB >= 0 ? '+' : '- ' }}{{ Math.abs(currentB) }}</h2>
+          <h2 v-else class="placeholder">Awaiting Equation...</h2>
+        </div>
+        <PhysicsCanvas 
+          class="physics-view"
+          :m="currentM" 
+          :b="currentB" 
+          :is-committed="isCommitted" 
+          :scale-param="scaleParam"
+          @ball-result="handleBallResult"
+        />
+      </div>
 
       <div class="control-panel glass-panel">
         <div class="turn-indicator" v-if="currentPlayer">
@@ -40,7 +46,7 @@
         </div>
         
         <div class="waiting-message" v-else>
-          <h3>Rolling...</h3>
+          <h3>The ball is rolling...</h3>
         </div>
       </div>
     </div>
@@ -102,6 +108,12 @@ const handleBallResult = (points: number) => {
   } else if (points === -1001) {
     // +10%
     currentPlayer.value.score = Math.floor(currentPlayer.value.score * 1.1)
+  } else if (points === -1002) {
+    // +20%
+    currentPlayer.value.score = Math.floor(currentPlayer.value.score * 1.2)
+  } else if (points === -1003) {
+    // -15%
+    currentPlayer.value.score = Math.floor(currentPlayer.value.score * 0.85)
   } else if (points === -5000) {
     // bankrupt
     currentPlayer.value.score = 0
@@ -190,9 +202,33 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-.physics-view {
+.physics-wrapper {
   flex: 3;
-  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.equation-display {
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.equation-display h2 {
+  font-family: 'Outfit', monospace;
+  font-size: 2rem;
+  letter-spacing: 2px;
+  margin: 0;
+  color: var(--accent-color);
+}
+
+.equation-display .placeholder {
+  opacity: 0.5;
+  font-style: italic;
+}
+
+.physics-view {
+  flex: 1;
 }
 
 .control-panel {

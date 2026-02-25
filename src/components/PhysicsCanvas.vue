@@ -69,15 +69,18 @@ const playScoreSound = (points: number) => {
 const generateBuckets = () => {
   const buckets = []
   const numBuckets = Math.floor(Math.random() * 4) + 5 // 5 to 8 buckets
+  // We want to avoid duplicates.
+  // Let's create a pool of possible bucket types and shuffle/pick from it.
+  const allTypes = [100, 200, 300, 50, -50, -100, -200, '2x', '+10%', '+20%', '-15%', 'BANKRUPT 👹']
+  const shuffledTypes = allTypes.sort(() => 0.5 - Math.random())
+  const selectedTypes = shuffledTypes.slice(0, numBuckets)
+
   let currentX = 0
   
   // Randomize bucket properties
   for (let i = 0; i < numBuckets; i++) {
     const width = (WIDTH / numBuckets) * (Math.random() * 0.5 + 0.75) // vary width slightly
-    // some are negative, some positive, maybe multipliers?
-    // for simplicity, just points string
-    const types = [100, 200, 50, -50, -100, '2x', '+10%']
-    const type = types[Math.floor(Math.random() * types.length)]
+    const type = selectedTypes[i]
     
     buckets.push({ x: currentX, width, type })
     currentX += width
@@ -93,6 +96,7 @@ const generateBuckets = () => {
     return sensor
   })
   
+  // +2x multiplier acts weirdly. Better strings: '2x', '+10%', '+20%', '-15%', 'BANKRUPT 👹'
   return sensors
 }
 
@@ -225,6 +229,9 @@ onMounted(() => {
             let points = 0
             if (typeStr === '2x') points = -1000 // special flag
             else if (typeStr === '+10%') points = -1001 // special flag
+            else if (typeStr === '+20%') points = -1002 // special flag
+            else if (typeStr === '-15%') points = -1003 // special flag
+            else if (typeStr === 'BANKRUPT 👹') points = -5000 // special flag
             else points = parseInt(typeStr, 10)
             
             playScoreSound(points)
