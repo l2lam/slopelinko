@@ -40,9 +40,12 @@
           </label>
           <label>
             Y-Intercept (b):
-            <input type="number" class="glass-input" v-model.number="currentB" step="1" />
+            <input type="number" class="glass-input" v-model.number="currentB" step="1" :min="minB" :max="maxB" />
           </label>
-          <button class="glass-btn primary commit-btn" @click="commitTurn">Commit Line!</button>
+          <div v-if="currentB < minB || currentB > maxB" class="warning-text">
+            ⚠️ Y-Intercept must be between {{ minB }} and {{ maxB }}.
+          </div>
+          <button class="glass-btn primary commit-btn" @click="commitTurn" :disabled="currentB < minB || currentB > maxB">Commit Line!</button>
         </div>
         
         <div class="waiting-message" v-else>
@@ -67,6 +70,9 @@ const currentB = ref(0)
 const isCommitted = ref(false)
 const scaleParam = ref(20) // randomized per turn
 const timeLeft = ref(gameState.timeLimitPerTurn)
+
+const minB = computed(() => Math.ceil(-300 / scaleParam.value))
+const maxB = computed(() => Math.floor(300 / scaleParam.value))
 
 let timerInterval: number | undefined
 
@@ -289,9 +295,23 @@ onUnmounted(() => {
   text-align: center;
 }
 
+.warning-text {
+  color: var(--danger-color, #ff5e5e);
+  font-size: 0.9rem;
+  text-align: center;
+  font-weight: bold;
+}
+
 .commit-btn {
   margin-top: 1rem;
   font-size: 1.5rem;
+}
+
+.commit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .waiting-message {
