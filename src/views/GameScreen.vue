@@ -58,6 +58,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { gameState } from '../store/gameStore'
 import PhysicsCanvas from '../components/PhysicsCanvas.vue'
+import { BUCKET_TYPES, BUCKET_POINTS } from '../constants'
 
 const router = useRouter()
 
@@ -102,19 +103,19 @@ const quitGame = () => {
 
 const handleBallResult = (points: number) => {
   if (!currentPlayer.value) return
-  if (points === -1000) {
+  if (points === BUCKET_POINTS[BUCKET_TYPES.MULTIPLY_2X]) {
     // 2x double current score
     currentPlayer.value.score *= 2
-  } else if (points === -1001) {
+  } else if (points === BUCKET_POINTS[BUCKET_TYPES.INTEREST_10_PERCENT]) {
     // +10%
     currentPlayer.value.score = Math.floor(currentPlayer.value.score * 1.1)
-  } else if (points === -1002) {
+  } else if (points === BUCKET_POINTS[BUCKET_TYPES.INTEREST_20_PERCENT]) {
     // +20%
     currentPlayer.value.score = Math.floor(currentPlayer.value.score * 1.2)
-  } else if (points === -1003) {
+  } else if (points === BUCKET_POINTS[BUCKET_TYPES.PENALTY_15_PERCENT]) {
     // -15%
     currentPlayer.value.score = Math.floor(currentPlayer.value.score * 0.85)
-  } else if (points === -5000) {
+  } else if (points === BUCKET_POINTS[BUCKET_TYPES.BANKRUPT]) {
     // bankrupt
     currentPlayer.value.score = 0
   } else {

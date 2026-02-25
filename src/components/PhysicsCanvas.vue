@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import Matter from 'matter-js'
 import { gameState } from '../store/gameStore'
+import { BUCKET_TYPES, ALL_BUCKET_TYPES, BUCKET_POINTS } from '../constants'
 
 const props = defineProps<{
   m?: number
@@ -58,7 +59,7 @@ const playScoreSound = (points: number) => {
     if (points > 0) {
         playTone(600, 'sine', 0.3)
         setTimeout(() => playTone(800, 'sine', 0.5), 100)
-    } else if (points < 0 && points !== -1000 && points !== -1001) {
+    } else if (points < 0 && points !== BUCKET_POINTS[BUCKET_TYPES.MULTIPLY_2X] && points !== BUCKET_POINTS[BUCKET_TYPES.INTEREST_10_PERCENT]) {
         playTone(200, 'square', 0.6)
     } else {
         playTone(400, 'sine', 0.2)
@@ -72,8 +73,7 @@ const generateBuckets = () => {
   const numBuckets = Math.floor(Math.random() * 4) + 5 // 5 to 8 buckets
   // We want to avoid duplicates.
   // Let's create a pool of possible bucket types and shuffle/pick from it.
-  const allTypes = [100, 200, 300, 50, -50, -100, -200, '2x', '+10%', '+20%', '-15%', 'BANKRUPT 👹']
-  const shuffledTypes = allTypes.sort(() => 0.5 - Math.random())
+  const shuffledTypes = [...ALL_BUCKET_TYPES].sort(() => 0.5 - Math.random())
   const selectedTypes = shuffledTypes.slice(0, numBuckets)
 
   let currentX = 0
@@ -242,12 +242,11 @@ onMounted(() => {
             (bucket as any).hitTime = Date.now()
             const typeStr = bucket.label.replace('bucket_', '')
             let points = 0
-            if (typeStr === '2x') points = -1000 // special flag
-            else if (typeStr === '+10%') points = -1001 // special flag
-            else if (typeStr === '+20%') points = -1002 // special flag
-            else if (typeStr === '-15%') points = -1003 // special flag
-            else if (typeStr === 'BANKRUPT 👹') points = -5000 // special flag
-            else points = parseInt(typeStr, 10)
+            if (Object.values(BUCKET_TYPES).includes(typeStr as any)) {
+                points = BUCKET_POINTS[typeStr as keyof typeof BUCKET_POINTS]
+            } else {
+                points = parseInt(typeStr, 10)
+            }
             
             playScoreSound(points)
             
