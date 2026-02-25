@@ -12,7 +12,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'ball-result', points: number): void
+  (e: 'ball-result', payload: { points: number, x: number, y: number }): void
 }>()
 
 const gridCanvasRef = ref<HTMLCanvasElement | null>(null)
@@ -54,19 +54,6 @@ const playTone = (frequency: number, type: OscillatorType, duration: number) => 
     oscillator.start()
     oscillator.stop(audioCtx.currentTime + duration)
   } catch(e) { console.warn('Audio play failed', e) }
-}
-
-const playScoreSound = (points: number) => {
-    if (points > 0) {
-        playTone(600, 'sine', 0.3)
-        setTimeout(() => playTone(800, 'sine', 0.5), 100)
-    } else if (points < 0 && points !== BUCKET_POINTS[BUCKET_TYPES.MULTIPLY_2X] && points !== BUCKET_POINTS[BUCKET_TYPES.INTEREST_10_PERCENT]) {
-        playTone(200, 'square', 0.6)
-    } else {
-        playTone(400, 'sine', 0.2)
-        setTimeout(() => playTone(600, 'sine', 0.2), 150)
-        setTimeout(() => playTone(1200, 'sine', 0.4), 300)
-    }
 }
 
 const playObstacleBounceSound = () => {
@@ -305,12 +292,10 @@ onMounted(() => {
                 points = parseInt(typeStr, 10)
             }
             
-            playScoreSound(points)
-            
             Matter.World.remove(engine.world, ball!)
             ball = null
             ballDropTime = null
-            emit('ball-result', points)
+            emit('ball-result', { points, x: bucket.position.x, y: bucket.position.y })
         }
     }
   })
@@ -477,7 +462,7 @@ setInterval(() => {
                 Matter.World.remove(engine.world, ball)
                 ball = null
                 ballDropTime = null
-                emit('ball-result', 0)
+                emit('ball-result', { points: 0, x: 0, y: 0 })
             }
         }
     }

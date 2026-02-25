@@ -17,14 +17,24 @@
           <h2 v-if="isCommitted">y = {{ currentM }}x {{ currentB >= 0 ? '+' : '- ' }}{{ Math.abs(currentB) }}</h2>
           <h2 v-else class="placeholder">Awaiting Equation...</h2>
         </div>
-        <PhysicsCanvas 
-          class="physics-view"
-          :m="currentM" 
-          :b="currentB" 
-          :is-committed="isCommitted" 
-          :scale-param="scaleParam"
-          @ball-result="handleBallResult"
-        />
+        <div class="canvas-overlay-container">
+          <PhysicsCanvas 
+            class="physics-view"
+            :m="currentM" 
+            :b="currentB" 
+            :is-committed="isCommitted" 
+            :scale-param="scaleParam"
+            @ball-result="handleBallResult"
+          />
+          <div class="overlay-bounds">
+            <div v-for="award in floatingAwards" :key="award.id"
+                 class="floating-award"
+                 :class="{ positive: award.diff > 0, negative: award.diff < 0, huge: Math.abs(award.diff) > 500 }"
+                 :style="{ left: award.x + 'px', top: award.y + 'px' }">
+              {{ award.diff > 0 ? '+' : '' }}{{ award.diff }}
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="control-panel glass-panel">
@@ -71,6 +81,8 @@ const isCommitted = ref(false)
 const scaleParam = ref(20) // randomized per turn
 const timeLeft = ref(gameState.timeLimitPerTurn)
 
+const floatingAwards = ref<{ id: number, diff: number, x: number, y: number }[]>([])
+
 const minB = computed(() => Math.ceil(-300 / scaleParam.value))
 const maxB = computed(() => Math.floor(300 / scaleParam.value))
 
@@ -107,8 +119,50 @@ const quitGame = () => {
   }
 }
 
-const handleBallResult = (points: number) => {
+const playTone = (frequency: number, type: OscillatorType, duration: number) => {
+  try {
+    const audioCtxCtor = window.AudioContext || (window as any).webkitAudioContext
+    if (!audioCtxCtor) return
+    const audioCtx = new audioCtxCtor()
+    if (audioCtx.state === 'suspended') audioCtx.resume()
+    const oscillator = audioCtx.createOscillator()
+    const gainNode = audioCtx.createGain()
+    
+    oscillator.type = type
+    oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime)
+    
+    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration)
+    
+    oscillator.connect(gainNode)
+    gainNode.connect(audioCtx.destination)
+    
+    oscillator.start()
+    oscillator.stop(audioCtx.currentTime + duration)
+  } catch(e) { console.warn('Audio play failed', e) }
+}
+
+const playScoreSound = (diff: number, points: number) => {
+    if (diff > 0) {
+        playTone(600, 'sine', 0.3)
+        setTimeout(() => playTone(800, 'sine', 0.5), 100)
+    } else if (points === BUCKET_POINTS[BUCKET_TYPES.BANKRUPT]) {
+        playTone(400, 'sine', 0.2)
+        setTimeout(() => playTone(600, 'sine', 0.2), 150)
+        setTimeout(() => playTone(1200, 'sine', 0.4), 300)
+    } else if (diff < 0) {
+        playTone(200, 'square', 0.6)
+    } else if (diff === 0 && points !== 0) {
+        playTone(300, 'sine', 0.2)
+    }
+}
+
+const handleBallResult = (payload: { points: number, x: number, y: number }) => {
   if (!currentPlayer.value) return
+  
+  const oldScore = currentPlayer.value.score
+  const { points } = payload
+  
   if (points === BUCKET_POINTS[BUCKET_TYPES.MULTIPLY_2X]) {
     // 2x double current score
     currentPlayer.value.score *= 2
@@ -126,6 +180,18 @@ const handleBallResult = (points: number) => {
     currentPlayer.value.score = 0
   } else {
     currentPlayer.value.score += points
+  }
+
+  const diff = currentPlayer.value.score - oldScore
+
+  if (points !== 0 || diff !== 0) {
+    const awardId = Date.now()
+    floatingAwards.value.push({ id: awardId, diff, x: payload.x, y: payload.y })
+    playScoreSound(diff, points)
+    
+    setTimeout(() => {
+      floatingAwards.value = floatingAwards.value.filter(a => a.id !== awardId)
+    }, 2500)
   }
 
   // Next turn logic
@@ -236,6 +302,62 @@ onUnmounted(() => {
 
 .physics-view {
   flex: 1;
+}
+
+.canvas-overlay-container {
+  position: relative;
+  display: flex;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+}
+
+.overlay-bounds {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 800px;
+  height: 600px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 100;
+}
+
+.floating-award {
+  position: absolute;
+  pointer-events: none;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 900;
+  font-size: 3rem;
+  text-shadow: 0 0 10px rgba(0,0,0,0.8), 2px 2px 0 #000;
+  animation: floatUp 2s ease-out forwards;
+  z-index: 100;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.floating-award.positive {
+  color: #4ade80; /* green */
+}
+
+.floating-award.negative {
+  color: #f87171; /* red */
+}
+
+.floating-award.huge {
+  font-size: 5rem;
+  animation: floatUpHuge 2s ease-out forwards;
+}
+
+@keyframes floatUp {
+  0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, calc(-50% - 120px)) scale(1.2); }
+}
+
+@keyframes floatUpHuge {
+  0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  10% { transform: translate(-50%, -50%) scale(1.5); }
+  100% { opacity: 0; transform: translate(-50%, calc(-50% - 180px)) scale(1); }
 }
 
 .control-panel {
