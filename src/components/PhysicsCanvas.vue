@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import Matter from 'matter-js'
+import { gameState } from '../store/gameStore'
 
 const props = defineProps<{
   m?: number
@@ -100,17 +101,32 @@ const generateBuckets = () => {
   return sensors
 }
 
+let ballVelocityX = 3 // initial speed
 const spawnStaticBall = () => {
   if (ball) {
     Matter.World.remove(engine.world, ball)
   }
   const randomX = Math.random() * (WIDTH - 100) + 50
+  
+  // Calculate speed based on round. Base speed of 3, +0.5 per round
+  ballVelocityX = 3 + (gameState.currentRound - 1) * 0.5
+  // Randomize initial direction
+  if (Math.random() > 0.5) ballVelocityX *= -1
+  
   ball = Matter.Bodies.circle(randomX, 30, 15, {
-    isStatic: true,
+    isStatic: true, // we'll manually move it
     restitution: 0.5,
     render: { fillStyle: '#ff5e5e' }
   })
   Matter.World.add(engine.world, ball)
+}
+
+const regenerateBuckets = () => {
+  if (bucketSensors.length > 0) {
+    Matter.World.remove(engine.world, bucketSensors)
+  }
+  bucketSensors = generateBuckets()
+  Matter.World.add(engine.world, bucketSensors)
 }
 
 const drawGrid = (ctx: CanvasRenderingContext2D) => {
@@ -205,8 +221,7 @@ onMounted(() => {
     if (gridCtx) drawGrid(gridCtx)
   }
   
-  bucketSensors = generateBuckets()
-  Matter.World.add(engine.world, bucketSensors)
+  regenerateBuckets()
   
   if (!props.isCommitted) {
       spawnStaticBall()
@@ -352,6 +367,7 @@ watch(() => props.isCommitted, (commited) => {
         }
         isDrawingLine = false
         ballDropTime = null
+        regenerateBuckets()
         spawnStaticBall()
     }
 })
@@ -363,26 +379,40 @@ watch(() => props.scaleParam, () => {
     }
 })
 
-// Check if ball falls off screen without hitting bucket or times out
+// Physics Check Loop: handles moving ball and fall off screen 
 setInterval(() => {
     if (ball) {
-        // Did it fall below, roll far left, or far right?
-        let shouldEnd = false;
-        if (ball.position.y > HEIGHT || ball.position.x < -20 || ball.position.x > WIDTH + 20) {
-            shouldEnd = true;
-        } else if (ballDropTime && Date.now() - ballDropTime > 5000) {
-            // max roll time: 10 seconds
-            shouldEnd = true;
-        }
+        if (!props.isCommitted) {
+            // Move ball horizontally
+            let nextX = ball.position.x + ballVelocityX
+            // Bounce off walls (accounting for radius 15)
+            if (nextX < 15) {
+                nextX = 15
+                ballVelocityX *= -1
+            } else if (nextX > WIDTH - 15) {
+                nextX = WIDTH - 15
+                ballVelocityX *= -1
+            }
+            Matter.Body.setPosition(ball, { x: nextX, y: ball.position.y })
+        } else {
+            // Did it fall below, roll far left, or far right?
+            let shouldEnd = false;
+            if (ball.position.y > HEIGHT || ball.position.x < -20 || ball.position.x > WIDTH + 20) {
+                shouldEnd = true;
+            } else if (ballDropTime && Date.now() - ballDropTime > 5000) {
+                // max roll time: 10 seconds
+                shouldEnd = true;
+            }
 
-        if (shouldEnd) {
-            Matter.World.remove(engine.world, ball)
-            ball = null
-            ballDropTime = null
-            emit('ball-result', 0)
+            if (shouldEnd) {
+                Matter.World.remove(engine.world, ball)
+                ball = null
+                ballDropTime = null
+                emit('ball-result', 0)
+            }
         }
     }
-}, 100)
+}, 16) // roughly 60fps for smooth movement
 
 </script>
 
