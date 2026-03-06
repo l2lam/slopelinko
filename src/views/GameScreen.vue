@@ -46,16 +46,19 @@
         <div class="inputs" v-if="!isCommitted">
           <label>
             Slope (m):
-            <input type="number" class="glass-input" v-model.number="currentM" step="0.1" />
+            <input type="number" class="glass-input" v-model.number="currentM" step="0.2" min="-3" max="3" />
           </label>
           <label>
             Y-Intercept (b):
             <input type="number" class="glass-input" v-model.number="currentB" step="1" :min="minB" :max="maxB" />
           </label>
+          <div v-if="currentM < -3 || currentM > 3" class="warning-text">
+            ⚠️ Slope must be between -3 and 3.
+          </div>
           <div v-if="currentB < minB || currentB > maxB" class="warning-text">
             ⚠️ Y-Intercept must be between {{ minB }} and {{ maxB }}.
           </div>
-          <button class="glass-btn primary commit-btn" @click="commitTurn" :disabled="currentB < minB || currentB > maxB">Commit Line!</button>
+          <button class="glass-btn primary commit-btn" @click="commitTurn" :disabled="currentM < -5 || currentM > 5 || currentB < minB || currentB > maxB">Commit Line!</button>
         </div>
         
         <div class="waiting-message" v-else>
@@ -84,7 +87,7 @@ const timeLeft = ref(gameState.timeLimitPerTurn)
 const floatingAwards = ref<{ id: number, diff: number, x: number, y: number }[]>([])
 
 const minB = computed(() => Math.ceil(-300 / scaleParam.value))
-const maxB = computed(() => Math.floor(300 / scaleParam.value))
+const maxB = computed(() => Math.floor(270 / scaleParam.value))
 
 let timerInterval: number | undefined
 

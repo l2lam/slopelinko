@@ -25,6 +25,7 @@ let runner: Matter.Runner
 let ball: Matter.Body | null = null
 let lineBody: Matter.Body | null = null
 let bucketSensors: Matter.Body[] = []
+let pegBodies: Matter.Body[] = []
 let obstacleBodies: Matter.Body[] = []
 
 const WIDTH = 800
@@ -111,8 +112,17 @@ const generateBuckets = () => {
     return sensor
   })
   
+  const pegs = buckets.map(b => {
+    return Matter.Bodies.circle(b.x + b.width / 2, HEIGHT - 150, 10, {
+      isStatic: true,
+      label: 'obstacle',
+      restitution: 0.8,
+      render: { fillStyle: '#aaa' }
+    })
+  })
+
   // +2x multiplier acts weirdly. Better strings: '2x', '+10%', '+20%', '-15%', 'BANKRUPT 👹'
-  return sensors
+  return { sensors, pegs }
 }
 
 let ballVelocityX = 3 // initial speed
@@ -139,8 +149,14 @@ const regenerateBuckets = () => {
   if (bucketSensors.length > 0) {
     Matter.World.remove(engine.world, bucketSensors)
   }
-  bucketSensors = generateBuckets()
+  if (pegBodies.length > 0) {
+    Matter.World.remove(engine.world, pegBodies)
+  }
+  const generated = generateBuckets()
+  bucketSensors = generated.sensors
+  pegBodies = generated.pegs
   Matter.World.add(engine.world, bucketSensors)
+  Matter.World.add(engine.world, pegBodies)
 }
 
 const generateObstacles = () => {
@@ -327,9 +343,9 @@ onMounted(() => {
   // Render buckets text
   Matter.Events.on(render, 'afterRender', () => {
       const ctx = render.context
-      ctx.textAlign = 'center'
+      ctx.textAlign = 'center';
       
-      obstacleBodies.forEach(b => {
+      [...obstacleBodies, ...pegBodies].forEach(b => {
           if ((b as any).hitTime) {
             const sinceHit = Date.now() - (b as any).hitTime
             if (sinceHit < 200) {
